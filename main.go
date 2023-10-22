@@ -28,6 +28,7 @@ func newRouter(publicPath string) *httprouter.Router {
 	router := httprouter.New()
 	router.GET("/", indexHandler)
 	router.NotFound = http.FileServer(http.Dir(publicPath))
+
 	return router
 }
 
