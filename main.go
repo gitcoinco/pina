@@ -63,6 +63,36 @@ func bytesToCID(b []byte) (string, error) {
 	return hash.String(), nil
 }
 
+func handleUpload(w http.ResponseWriter, r *http.Request, content []byte) error {
+	// generate CID
+	ipfsHash, err := bytesToCID(content)
+	if err != nil {
+		return err
+	}
+
+	// create file using CID as file name
+	f, err := os.Create(filepath.Join(ipfsPath, ipfsHash))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// write uploadded file content to file
+	_, err = f.Write(content)
+	if err != nil {
+		return err
+	}
+
+	// encode response body
+	err = json.NewEncoder(w).Encode(&PinJSONResponseBody{
+		IpfsHash:  ipfsHash,
+		PinSize:   10,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+
+	return err
+}
+
 func pinJSONHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var body PinJSONRequestBody
 
@@ -81,35 +111,7 @@ func pinJSONHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		return
 	}
 
-	// generate CID
-	ipfsHash, err := bytesToCID(content.Bytes())
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	// create file using CID as file name
-	f, err := os.Create(filepath.Join(ipfsPath, ipfsHash))
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	defer f.Close()
-
-	// write JSON content to file
-	_, err = f.Write(content.Bytes())
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	// encode response body
-	err = json.NewEncoder(w).Encode(&PinJSONResponseBody{
-		IpfsHash:  ipfsHash,
-		PinSize:   10,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	})
-
+	err = handleUpload(w, r, content.Bytes())
 	if err != nil {
 		handleError(w, err)
 	}
@@ -133,35 +135,7 @@ func pinFileHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		return
 	}
 
-	// generate CID
-	ipfsHash, err := bytesToCID(content)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	// create file using CID as file name
-	f, err := os.Create(filepath.Join(ipfsPath, ipfsHash))
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-	defer f.Close()
-
-	// write uploadded file content to file
-	_, err = f.Write(content)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	// encode response body
-	err = json.NewEncoder(w).Encode(&PinJSONResponseBody{
-		IpfsHash:  ipfsHash,
-		PinSize:   10,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	})
-
+	err = handleUpload(w, r, content)
 	if err != nil {
 		handleError(w, err)
 	}
