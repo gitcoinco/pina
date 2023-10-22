@@ -82,11 +82,12 @@ func TestPinJSONHandler(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	assert.Equal(t, responseBody.IpfsHash, "foo")
-	assert.Equal(t, responseBody.PinSize, 10)
+	cid := "bafkreihktyturq4bzrikdjylvvjbrgh5rfigzlydmjoyri3ip6fjbcqddu"
+	assert.Equal(t, cid, responseBody.IpfsHash)
+	assert.Equal(t, 10, responseBody.PinSize)
 	assert.NotEqual(t, "", responseBody.Timestamp)
 
-	fileName := filepath.Join(ipfsPath, "test.json")
+	fileName := filepath.Join(ipfsPath, cid)
 	f, err := os.Open(fileName)
 	if err != nil {
 		log.Fatal(err)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,7 +11,10 @@ import (
 	"path/filepath"
 	"time"
 
+	cid "github.com/ipfs/go-cid"
 	"github.com/julienschmidt/httprouter"
+	mc "github.com/multiformats/go-multicodec"
+	mh "github.com/multiformats/go-multihash"
 )
 
 type PinJSONRequestBody struct {
@@ -42,31 +46,65 @@ func indexHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	fmt.Fprint(w, "Hello World")
 }
 
+func bytesToCID(b []byte) (string, error) {
+	pref := cid.Prefix{
+		Version:  1,
+		Codec:    uint64(mc.Raw),
+		MhType:   mh.SHA2_256,
+		MhLength: -1, // default length
+	}
+
+	hash, err := pref.Sum(b)
+	if err != nil {
+		return "", err
+	}
+
+	return hash.String(), nil
+}
+
 func pinJSONHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var body PinJSONRequestBody
 
+	// parse request body
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
 
-	fileName := "test.json"
-	f, err := os.Create(filepath.Join(ipfsPath, fileName))
+	// encode JSON file content
+	content := bytes.NewBuffer([]byte{})
+	err = json.NewEncoder(content).Encode(body.PinataContent)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	// generate CID
+	ipfsHash, err := bytesToCID(content.Bytes())
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	// create file using CID as file name
+	f, err := os.Create(filepath.Join(ipfsPath, ipfsHash))
 	if err != nil {
 		handleError(w, err)
 		return
 	}
 	defer f.Close()
 
-	err = json.NewEncoder(f).Encode(body.PinataContent)
+	// write JSON content to file
+	_, err = f.Write(content.Bytes())
 	if err != nil {
 		handleError(w, err)
 		return
 	}
 
+	// encode response body
 	err = json.NewEncoder(w).Encode(&PinJSONResponseBody{
-		IpfsHash:  "foo",
+		IpfsHash:  ipfsHash,
 		PinSize:   10,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
@@ -86,6 +124,7 @@ func newRouter(publicPath string) (*httprouter.Router, error) {
 	router := httprouter.New()
 	router.GET("/", indexHandler)
 	router.POST("/pinning/pinJSONToIPFS", pinJSONHandler)
+	// router.POST("/pinning/pinFileToIPFS", pinFileHandler)
 	router.NotFound = http.FileServer(http.Dir(publicPath))
 
 	return router, nil
