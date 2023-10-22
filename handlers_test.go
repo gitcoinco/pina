@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,4 +102,55 @@ func TestPinJSONHandler(t *testing.T) {
 	}
 
 	assert.Equal(t, `{"foo":{"bar":"baz"}}`, strings.TrimSpace(string(content)))
+}
+
+func TestPinFileHandler(t *testing.T) {
+	router, _ := newTestRouter(t)
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	// writer.WriteField("file", "Uploaded content")
+
+	// Create the file part with an invalid file extension
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "file", "uploaded.txt"))
+	h.Set("Content-Type", "text/plain")
+	part, _ := writer.CreatePart(h)
+	part.Write([]byte("Uploaded content"))
+	writer.Close()
+	// Prepare and send the HTTP request
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/pinning/pinFileToIPFS", body)
+	req.Header.Add("Content-Type", writer.FormDataContentType())
+	router.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
+
+	var responseBody PinJSONResponseBody
+	err := json.NewDecoder(resp.Body).Decode(&responseBody)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cid := "bafkreifqrpvngn6k2q6qahrm2oawbtrsoucxi7xtxehydodbzgnky6eiem"
+	assert.Equal(t, cid, responseBody.IpfsHash)
+	assert.Equal(t, 10, responseBody.PinSize)
+	assert.NotEqual(t, "", responseBody.Timestamp)
+
+	fileName := filepath.Join(ipfsPath, cid)
+	f, err := os.Open(fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	assert.Equal(t, "Uploaded content", strings.TrimSpace(string(content)))
 }

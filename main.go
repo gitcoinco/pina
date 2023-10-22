@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -114,6 +115,58 @@ func pinJSONHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	}
 }
 
+func pinFileHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	r.ParseMultipartForm(10 << 20) // max 10MB
+
+	// parse uploaded file
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	defer file.Close()
+
+	// read file content
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	// generate CID
+	ipfsHash, err := bytesToCID(content)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	// create file using CID as file name
+	f, err := os.Create(filepath.Join(ipfsPath, ipfsHash))
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	defer f.Close()
+
+	// write uploadded file content to file
+	_, err = f.Write(content)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	// encode response body
+	err = json.NewEncoder(w).Encode(&PinJSONResponseBody{
+		IpfsHash:  ipfsHash,
+		PinSize:   10,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+
+	if err != nil {
+		handleError(w, err)
+	}
+}
+
 func newRouter(publicPath string) (*httprouter.Router, error) {
 	ipfsPath = filepath.Join(publicPath, "ipfs")
 	err := os.MkdirAll(ipfsPath, 0755)
@@ -124,7 +177,7 @@ func newRouter(publicPath string) (*httprouter.Router, error) {
 	router := httprouter.New()
 	router.GET("/", indexHandler)
 	router.POST("/pinning/pinJSONToIPFS", pinJSONHandler)
-	// router.POST("/pinning/pinFileToIPFS", pinFileHandler)
+	router.POST("/pinning/pinFileToIPFS", pinFileHandler)
 	router.NotFound = http.FileServer(http.Dir(publicPath))
 
 	return router, nil
