@@ -17,6 +17,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	mc "github.com/multiformats/go-multicodec"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/rs/cors"
 )
 
 const AUTH_TOKEN = "development-token"
@@ -189,5 +190,6 @@ func main() {
 	fmt.Printf("listening: %s\n", binding)
 	fmt.Printf("public path: %s\n", publicPath)
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), router))
+	handler := cors.Default().Handler(router)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), handler))
 }
