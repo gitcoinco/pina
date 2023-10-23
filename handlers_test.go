@@ -72,6 +72,7 @@ func TestPinJSONHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	reqBody := bytes.NewBufferString(`{"pinataContent": {"foo": {"bar": "baz"}}}`)
 	req := httptest.NewRequest(http.MethodPost, "/pinning/pinJSONToIPFS", reqBody)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", AUTH_TOKEN))
 	router.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -122,6 +123,7 @@ func TestPinFileHandler(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/pinning/pinFileToIPFS", body)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", AUTH_TOKEN))
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	router.ServeHTTP(w, req)
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	cid "github.com/ipfs/go-cid"
@@ -17,6 +18,8 @@ import (
 	mc "github.com/multiformats/go-multicodec"
 	mh "github.com/multiformats/go-multihash"
 )
+
+const AUTH_TOKEN = "development-token"
 
 type PinJSONRequestBody struct {
 	PinataContent interface{} `json:"pinataContent"`
@@ -40,7 +43,7 @@ func init() {
 }
 func handleError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprint(w, "server error1")
+	fmt.Fprint(w, "server error")
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -141,6 +144,19 @@ func pinFileHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	}
 }
 
+func authWrapper(next httprouter.Handle) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		authorization := r.Header.Get("Authorization")
+		token := strings.TrimSpace(strings.Replace(authorization, "Bearer", "", 1))
+		if token != AUTH_TOKEN {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, fmt.Sprintf("access denied, you are not using the development auth token: %s", AUTH_TOKEN))
+			return
+		}
+		next(w, r, params)
+	}
+}
+
 func newRouter(publicPath string) (*httprouter.Router, error) {
 	ipfsPath = filepath.Join(publicPath, "ipfs")
 	err := os.MkdirAll(ipfsPath, 0755)
@@ -150,8 +166,8 @@ func newRouter(publicPath string) (*httprouter.Router, error) {
 
 	router := httprouter.New()
 	router.GET("/", indexHandler)
-	router.POST("/pinning/pinJSONToIPFS", pinJSONHandler)
-	router.POST("/pinning/pinFileToIPFS", pinFileHandler)
+	router.POST("/pinning/pinJSONToIPFS", authWrapper(pinJSONHandler))
+	router.POST("/pinning/pinFileToIPFS", authWrapper(pinFileHandler))
 	router.NotFound = http.FileServer(http.Dir(publicPath))
 
 	return router, nil
