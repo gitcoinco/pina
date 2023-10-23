@@ -12,9 +12,13 @@ post /pinning/pinJSONToIPFS
 post /pinning/pinFileToIPFS
 ```
 
-### Test
+### Test and Build
 
-`go test`
+```
+git clone git@github.com:gitcoinco/pina.git
+go test
+go build
+```
 
 ### Run
 
