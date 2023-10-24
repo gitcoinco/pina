@@ -77,7 +77,7 @@ func TestPinJSONHandler(t *testing.T) {
 
 	resp := w.Result()
 
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 201, resp.StatusCode)
 	assert.Equal(t, "text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 
 	var responseBody PinJSONResponseBody
@@ -110,7 +110,6 @@ func TestPinFileHandler(t *testing.T) {
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	// writer.WriteField("file", "Uploaded content")
 
 	// Create the file part with an invalid file extension
 	h := make(textproto.MIMEHeader)
@@ -129,7 +128,7 @@ func TestPinFileHandler(t *testing.T) {
 
 	resp := w.Result()
 
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, 201, resp.StatusCode)
 	assert.Equal(t, "text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 
 	var responseBody PinJSONResponseBody
