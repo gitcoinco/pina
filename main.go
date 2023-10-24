@@ -64,8 +64,10 @@ func init() {
 	flag.IntVar(&port, "port", 0, "http server port")
 	flag.StringVar(&publicPath, "public", "", "public path")
 }
+
 func handleError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
+	logger.Printf("error: %+v", err)
 	fmt.Fprint(w, "server error")
 }
 
@@ -97,7 +99,9 @@ func handleUpload(w http.ResponseWriter, r *http.Request, content []byte) error 
 	}
 
 	// create file using CID as file name
-	f, err := os.Create(filepath.Join(ipfsPath, ipfsHash))
+	filePath := filepath.Join(ipfsPath, ipfsHash)
+	logger.Printf("writing to file %s", filePath)
+	f, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -212,6 +216,6 @@ func main() {
 	logger.Printf("listening: %s\n", binding)
 	logger.Printf("public path: %s\n", publicPath)
 
-	handler := cors.Default().Handler(router)
+	handler := cors.New(cors.Options{Logger: logger, AllowedHeaders: []string{"*"}}).Handler(router)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), &LogHandler{handler}))
 }
