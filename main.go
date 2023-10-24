@@ -22,6 +22,14 @@ import (
 
 const AUTH_TOKEN = "development-token"
 
+var (
+	publicPath string
+	ipfsPath   string
+	port       int
+
+	logger = log.New(os.Stderr, "", log.Ltime)
+)
+
 type PinJSONRequestBody struct {
 	PinataContent interface{} `json:"pinataContent"`
 }
@@ -32,11 +40,25 @@ type PinJSONResponseBody struct {
 	Timestamp string `json:"timestamp"`
 }
 
-var (
-	publicPath string
-	ipfsPath   string
-	port       int
-)
+type WrappedResponseWriter struct {
+	http.ResponseWriter
+	lastStatusCode int
+}
+
+func (w *WrappedResponseWriter) WriteHeader(statusCode int) {
+	w.lastStatusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+type LogHandler struct {
+	handler http.Handler
+}
+
+func (l *LogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ww := &WrappedResponseWriter{w, 200}
+	l.handler.ServeHTTP(ww, r)
+	logger.Printf("[%s] %s (%d)", r.Method, r.URL.Path, ww.lastStatusCode)
+}
 
 func init() {
 	flag.IntVar(&port, "port", 0, "http server port")
@@ -187,9 +209,9 @@ func main() {
 		log.Fatal(err)
 	}
 	binding := fmt.Sprintf(":%d", port)
-	fmt.Printf("listening: %s\n", binding)
-	fmt.Printf("public path: %s\n", publicPath)
+	logger.Printf("listening: %s\n", binding)
+	logger.Printf("public path: %s\n", publicPath)
 
 	handler := cors.Default().Handler(router)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), handler))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), &LogHandler{handler}))
 }
