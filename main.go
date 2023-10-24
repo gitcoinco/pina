@@ -35,9 +35,9 @@ type PinJSONRequestBody struct {
 }
 
 type PinJSONResponseBody struct {
-	IpfsHash  string `json:"ipfsHash"`
-	PinSize   int    `json:"pinSize"`
-	Timestamp string `json:"timestamp"`
+	IpfsHash  string `json:"IpfsHash"`
+	PinSize   int    `json:"PinSize"`
+	Timestamp string `json:"Timestamp"`
 }
 
 type WrappedResponseWriter struct {
