@@ -113,6 +113,9 @@ func handleUpload(w http.ResponseWriter, r *http.Request, content []byte) error 
 		return err
 	}
 
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusCreated)
+
 	// encode response body
 	err = json.NewEncoder(w).Encode(&PinJSONResponseBody{
 		IpfsHash:  ipfsHash,
@@ -169,6 +172,7 @@ func pinFileHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	if err != nil {
 		handleError(w, err)
 	}
+
 }
 
 func authWrapper(next httprouter.Handle) httprouter.Handle {
